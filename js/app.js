@@ -150,9 +150,35 @@
     if (!window.DRAW) return showError("The draw hasn't been made yet. The organiser needs to run tools/make_draw.py.");
     if (!SS.drawMatchesConfig()) return showError("The names list changed after the draw was made. The organiser needs to run tools/make_draw.py again.");
     const lock = SS.getLock();
-    if (lock && CFG.participants.includes(lock.name)) return openWheel(lock.name, lock.spun);
+    if (lock && CFG.participants.includes(lock.name)) {
+      SS.claim(lock.name); // make sure the server knows (quietly)
+      return openWheel(lock.name, lock.spun);
+    }
     buildPeople();
     setStep("stepPick");
+    // Keep the "opened" names up to date while people are choosing.
+    refreshClaims();
+    setInterval(() => { if ($("stepPick").classList.contains("is-active") && !document.hidden) refreshClaims(); }, 10000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshClaims(); });
+  }
+
+  // ---------- names other people have already opened ----------
+  let claimed = new Set();
+  function setOpened(btn, on) {
+    btn.classList.toggle("is-opened", on);
+    btn.disabled = on;
+    btn.setAttribute("aria-label", on ? `${btn.dataset.name}: already opened` : btn.dataset.name);
+  }
+  async function refreshClaims() {
+    const list = await SS.fetchClaims();
+    if (!list) return; // offline: the server still checks when someone confirms
+    claimed = new Set(list);
+    document.querySelectorAll(".person").forEach((b) => setOpened(b, claimed.has(b.dataset.name)));
+  }
+  function showNotice(text) {
+    const n = $("pickNotice");
+    n.textContent = text;
+    n.hidden = !text;
   }
   function showError(msg) {
     $("errorText").textContent = msg;
@@ -165,8 +191,10 @@
     CFG.participants.forEach((name, i) => {
       const b = document.createElement("button");
       b.className = "person";
+      b.dataset.name = name;
       b.style.setProperty("--i", i);
-      b.innerHTML = `<span class="person-face">${C.hatHead(P.avatar(name), i % 4 === 3 ? "elf" : "santa")}</span><span class="person-name">${name}</span>`;
+      b.innerHTML = `<span class="person-face">${C.hatHead(P.avatar(name), i % 4 === 3 ? "elf" : "santa")}</span><span class="person-name">${name}</span><span class="opened-stamp" aria-hidden="true">OPENED</span>`;
+      setOpened(b, claimed.has(name));
       b.addEventListener("click", () => askConfirm(name));
       wrap.appendChild(b);
     });
@@ -175,7 +203,9 @@
   // "are you sure?"
   let pending = null;
   function askConfirm(name) {
+    if (claimed.has(name)) return;
     pending = name;
+    $("confirmError").textContent = "";
     $("confirmChar").replaceChildren(C.character("grinch", P.avatar(name), { label: false }));
     $("confirmTitle").textContent = `Are you sure you're ${name}?`;
     $("confirmText").textContent = "Once you say yes, this device is locked to you. You won't be able to come back and look at anyone else's.";
@@ -190,10 +220,29 @@
   $("confirmNo").addEventListener("click", closeConfirm);
   $("confirm").addEventListener("click", (e) => { if (e.target.id === "confirm") closeConfirm(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("confirm").hidden) closeConfirm(); });
-  $("confirmYes").addEventListener("click", () => {
-    closeConfirm();
-    const lock = SS.lockTo(pending); // locks the device BEFORE anything is shown
-    openWheel(lock.name, lock.spun);
+  $("confirmYes").addEventListener("click", async () => {
+    const name = pending;
+    const yes = $("confirmYes"), no = $("confirmNo");
+    yes.disabled = no.disabled = true;
+    yes.textContent = "Checking…";
+    $("confirmError").textContent = "";
+    const res = await SS.claim(name); // the server makes sure nobody else has opened it
+    yes.disabled = no.disabled = false;
+    yes.textContent = "Yes, it's me!";
+
+    if (res.ok || (res.reason === "device-has-name" && res.name)) {
+      closeConfirm();
+      const lock = SS.lockTo(res.ok ? name : res.name); // lock this device BEFORE anything is shown
+      return openWheel(lock.name, lock.spun);
+    }
+    if (res.reason === "taken") {
+      closeConfirm();
+      claimed.add(name);
+      document.querySelectorAll(".person").forEach((b) => setOpened(b, claimed.has(b.dataset.name)));
+      showNotice(`${name}'s has already been opened on another phone. If that wasn't you, tell the organiser.`);
+      return;
+    }
+    $("confirmError").textContent = "Couldn't reach Santa's workshop 📡 Check your signal and try again.";
   });
 
   // ---------- the wheel ----------

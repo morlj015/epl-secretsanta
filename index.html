@@ -87,6 +87,7 @@
         <div class="step is-active" id="stepPick">
           <h2>Who are you?</h2>
           <p class="hint">Tap your own name. No peeking at anyone else's!</p>
+          <p class="notice" id="pickNotice" role="status" hidden></p>
           <div class="people" id="people"></div>
         </div>
 
@@ -128,6 +129,7 @@
         <button class="btn" id="confirmYes">Yes, it's me!</button>
         <button class="btn btn--ghost" id="confirmNo">Oops, go back</button>
       </div>
+      <p class="modal-error" id="confirmError" role="alert"></p>
     </div>
   </div>
 

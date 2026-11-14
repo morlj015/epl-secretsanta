@@ -11,3 +11,6 @@
 # local notes and faces waiting to be named
 /README.md
 /assets/faces/_new/
+
+# the Cloudflare Worker and the organiser's secret token stay on this computer
+/worker/

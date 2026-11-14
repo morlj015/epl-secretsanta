@@ -60,9 +60,71 @@
     document.cookie = `${KEY}=${encodeURIComponent(raw)}; max-age=${60 * 60 * 24 * 120}; path=/; SameSite=Lax`;
   }
 
+  // ---------- shared "who's opened" list (Cloudflare Worker) ----------
+  const DEVICE_KEY = "secret-santa-device";
+  function deviceId() {
+    let id = null;
+    try { id = localStorage.getItem(DEVICE_KEY); } catch (e) {}
+    if (!id) {
+      const m = document.cookie.match(new RegExp("(?:^|; )" + DEVICE_KEY + "=([^;]*)"));
+      if (m) id = decodeURIComponent(m[1]);
+    }
+    if (!id) {
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : Array.from({ length: 32 }, () => ((Math.random() * 16) | 0).toString(16)).join("");
+    }
+    try { localStorage.setItem(DEVICE_KEY, id); } catch (e) {}
+    document.cookie = `${DEVICE_KEY}=${encodeURIComponent(id)}; max-age=${60 * 60 * 24 * 120}; path=/; SameSite=Lax`;
+    return id;
+  }
+
+  const apiBase = () => (window.CONFIG.claimsApi || "").replace(/\/+$/, "");
+
+  async function api(path, options = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 9000);
+    try {
+      const res = await fetch(apiBase() + path, { ...options, cache: "no-store", signal: ctrl.signal });
+      const body = await res.json().catch(() => ({}));
+      return { status: res.status, body };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Names already opened by anyone. null = couldn't reach the server.
+  async function fetchClaims() {
+    if (!apiBase()) return [];
+    try {
+      const { status, body } = await api("/claims");
+      return status === 200 && Array.isArray(body.claimed) ? body.claimed : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Ask the server for this name. Resolves to { ok, reason, name? }.
+  async function claim(name) {
+    if (!apiBase()) return { ok: true };
+    try {
+      const { status, body } = await api("/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, device: deviceId() }),
+      });
+      if (status === 200 && body.ok) return { ok: true };
+      return { ok: false, reason: body.reason || "error", name: body.name };
+    } catch (e) {
+      return { ok: false, reason: "offline" };
+    }
+  }
+
   window.SecretSanta = {
     recipientFor,
     drawMatchesConfig,
+    fetchClaims,
+    claim,
+    usesServer: () => !!apiBase(),
     getLock: readLock,
     lockTo(name) {
       const existing = readLock();
