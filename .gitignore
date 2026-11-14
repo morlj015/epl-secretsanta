@@ -1,0 +1,13 @@
+# Only the website itself goes on GitHub. Everything below stays on this computer.
+.DS_Store
+
+# original photos and song files (the site uses its own copies in assets/)
+/images/
+/*.m4a
+
+# scripts for cutting faces and making the draw (they show how the draw is scrambled)
+/tools/
+
+# local notes and faces waiting to be named
+/README.md
+/assets/faces/_new/

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Secret Santa 2026</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#081628">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%85%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Night sky that sits behind every screen -->
+  <div class="sky" aria-hidden="true">
+    <div class="stars"></div>
+    <div class="moon"></div>
+    <svg class="village" viewBox="0 0 1200 220" preserveAspectRatio="xMidYMax slice">
+      <path d="M0 150 Q150 110 300 140 T600 130 T900 140 T1200 120 V220 H0Z" fill="#0d2440"/>
+      <g fill="#10243a">
+        <path d="M90 150 v-50 l40 -34 l40 34 v50z"/><path d="M230 150 v-36 l30 -26 l30 26 v36z"/>
+        <path d="M760 150 v-60 l46 -40 l46 40 v60z"/><path d="M930 150 v-40 l34 -30 l34 30 v40z"/>
+        <path d="M480 150 v-70 l20 -20 v-30 h14 v44 l30 26 v50z"/>
+      </g>
+      <g fill="#ffd56b" class="windows">
+        <rect x="112" y="112" width="12" height="12"/><rect x="138" y="112" width="12" height="12"/>
+        <rect x="252" y="122" width="10" height="10"/><rect x="786" y="100" width="14" height="14"/>
+        <rect x="812" y="100" width="14" height="14"/><rect x="956" y="118" width="12" height="12"/>
+        <rect x="498" y="104" width="10" height="16"/>
+      </g>
+      <path d="M0 180 Q200 150 400 172 T800 165 T1200 170 V220 H0Z" fill="#eef5ff"/>
+    </svg>
+  </div>
+  <canvas id="snow" aria-hidden="true"></canvas>
+  <canvas id="fx" aria-hidden="true"></canvas>
+
+  <!-- 1. Start gate (browsers need a tap before music can play) -->
+  <section id="gate" class="screen is-active">
+    <button class="gate-btn" id="startBtn">
+      <span class="gate-present" aria-hidden="true">🎁</span>
+      <span class="gate-title">Tap to start</span>
+      <span class="gate-sub">Sound on 🔊</span>
+    </button>
+    <button class="link-btn" id="skipGate">Skip intro</button>
+  </section>
+
+  <!-- 2. The intro "video", played in time with the song -->
+  <section id="intro" class="screen" aria-label="Intro animation">
+    <div class="stage" id="stage"></div>
+    <div class="caption" id="caption" aria-live="polite"></div>
+    <button class="link-btn skip-intro" id="skipIntro">Skip ⏭</button>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+  </section>
+
+  <!-- 3. Enter site -->
+  <section id="enter" class="screen">
+    <div class="peekers" id="enterPeekers"></div>
+    <button class="enter-box" id="enterBtn">
+      <span class="lights" aria-hidden="true"></span>
+      <span class="holly holly--tl" aria-hidden="true"></span>
+      <span class="holly holly--tr" aria-hidden="true"></span>
+      <span class="holly holly--bl" aria-hidden="true"></span>
+      <span class="holly holly--br" aria-hidden="true"></span>
+      <span class="enter-text">Enter Site</span>
+      <span class="enter-sub">ho ho ho</span>
+    </button>
+    <button class="link-btn replay" id="replayBtn">↺ Watch the intro again</button>
+  </section>
+
+  <!-- 4. The site itself -->
+  <section id="site" class="screen">
+    <div class="garland" aria-hidden="true"></div>
+    <div class="falling" id="falling" aria-hidden="true"></div>
+    <div class="flyover" id="flyover" aria-hidden="true"></div>
+    <div class="corner corner--l" id="cornerL" aria-hidden="true"></div>
+    <div class="corner corner--r" id="cornerR" aria-hidden="true"></div>
+
+    <main class="site-main">
+      <header class="site-head">
+        <h1 class="site-title" id="siteTitle">Secret Santa</h1>
+      </header>
+
+      <div class="card" id="card">
+        <!-- step: pick your name -->
+        <div class="step is-active" id="stepPick">
+          <h2>Who are you?</h2>
+          <p class="hint">Tap your own name. No peeking at anyone else's!</p>
+          <div class="people" id="people"></div>
+        </div>
+
+        <!-- step: spin the wheel -->
+        <div class="step" id="stepWheel">
+          <p class="reveal-kicker" id="wheelKicker"></p>
+          <div class="wheel-wrap" id="wheelWrap">
+            <div class="wheel-pointer" id="wheelPointer" aria-hidden="true"></div>
+            <svg class="wheel" id="wheel" viewBox="-210 -210 420 420" aria-hidden="true"></svg>
+            <button class="wheel-spin" id="spinBtn">SPIN</button>
+          </div>
+          <div class="result" id="result" aria-live="polite">
+            <div class="reveal-char" id="revealChar"></div>
+            <p>You're buying a present for…</p>
+            <p class="reveal-name" id="revealName"></p>
+            <p class="reveal-info" id="revealInfo"></p>
+            <p class="locked-note" id="lockedNote"></p>
+          </div>
+        </div>
+
+        <!-- step: something's wrong with the setup -->
+        <div class="step" id="stepError">
+          <h2>Hold on…</h2>
+          <p class="hint" id="errorText"></p>
+        </div>
+      </div>
+    </main>
+
+    <button class="music-btn" id="musicBtn" aria-pressed="false" title="Music">🎵</button>
+  </section>
+
+  <!-- "Are you sure?" -->
+  <div class="modal" id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+    <div class="modal-card">
+      <div class="confirm-char" id="confirmChar"></div>
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p id="confirmText"></p>
+      <div class="modal-actions">
+        <button class="btn" id="confirmYes">Yes, it's me!</button>
+        <button class="btn btn--ghost" id="confirmNo">Oops, go back</button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="song" src="assets/audio/ep-lads-christmas-meal.m4a" preload="auto"></audio>
+
+  <script src="js/config.js"></script>
+  <script src="js/faces.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/intro.js"></script>
+  <script src="js/secret-santa.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
